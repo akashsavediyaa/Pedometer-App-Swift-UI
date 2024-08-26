@@ -8,17 +8,50 @@
 import SwiftUI
 
 struct ContentView: View {
+    @State private var healthStore = HealthStore()
+    @State private var displayType: DisplayType = .list
+    private var steps: [Step] {
+        healthStore.steps.sorted { lhs, rhs in
+            lhs.date > rhs.date
+        }
+    }
     var body: some View {
         VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+            if let step = steps.first {
+                TodayStepCard(step: step)
+            }
+            Picker("Selection", selection: $displayType) {
+                ForEach(DisplayType.allCases) { displayType in
+                    Image(systemName: displayType.icon).tag(displayType)
+                }
+            }
+            .pickerStyle(.segmented)
+            
+            switch displayType {
+            case .list:
+                StepListView(steps: Array(steps.dropFirst()))
+            case .chart:
+                StepsChartView(step: steps)
+            }
+            
+            
+        }
+             .task {
+            await healthStore.requestAuthorization()
+            do {
+                try await healthStore.calculateSteps()
+            } catch {
+                print(error)
+            }
+            
         }
         .padding()
+        .navigationTitle("Step by Step")
     }
 }
 
 #Preview {
-    ContentView()
+    NavigationStack {
+        ContentView()
+    }
 }
